@@ -21,9 +21,22 @@ import java.util.List;
 import java.util.Arrays;
 
 public class App {
+
+    private static final String USAGE = String.format("java -jar %s.jar <instance name> <zookeepers>"
+                                                      + "<table name> <WAL path>", 
+                                                      App.class.getSimpleName());
+
     public static void main(String [] args) throws Exception {
-        List<String> myList = Arrays.asList(args);
+        if(args.length < 4) {
+            System.err.println(USAGE);
+            System.exit(-1);
+        }
+        String instanceName = args[0];
+        String zookeepers = args[1];
+        String tableName = args[2];
+
+        List<String> myList = Arrays.asList(Arrays.copyOfRange(args, 3, args.length));
         WriteAheadLogReader reader = new WriteAheadLogReader(myList);
-        reader.handleWriteAheadLogs(new TableLogEventHandler("demo", "zookeeper:2181", "taylor"));
+        reader.handleWriteAheadLogs(new TableLogEventHandler(instanceName, zookeepers, tableName));
     }
 }
