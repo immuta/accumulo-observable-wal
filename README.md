@@ -32,3 +32,6 @@ This has currently been tested against Accumulo 1.6.0 running against CDH 5.3.2
     + java 1.7 or higher
     + maven 
     + accumulo 1.6.0
+
+## License
+Apache 2.0
