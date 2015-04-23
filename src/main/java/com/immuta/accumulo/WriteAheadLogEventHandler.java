@@ -1,5 +1,3 @@
-package com.immuta.accumulo;
-
 /**
  * Copyright 2015 Immuta Inc
  * 
@@ -16,6 +14,8 @@ package com.immuta.accumulo;
  *  limitations under the License.
  *
  */
+
+package com.immuta.accumulo;
 
 import org.apache.accumulo.tserver.logger.LogFileKey;
 import org.apache.accumulo.tserver.logger.LogFileValue;
