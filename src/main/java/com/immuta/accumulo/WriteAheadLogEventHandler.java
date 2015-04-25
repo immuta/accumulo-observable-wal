@@ -24,7 +24,8 @@ public interface WriteAheadLogEventHandler {
     /**
      * Handle a Write-Ahead Log event (LogFileKey and LogFileValue)
      *
-     * @throws WALHandlerException if something goes wrong while handling the event
+     * The user can decide what exceptions to throw based on what their
+     * indvidual handler does.
      */
     public void handleEvent(LogFileKey key, LogFileValue value);
 }

@@ -31,12 +31,14 @@ public class App {
             System.err.println(USAGE);
             System.exit(-1);
         }
+
         String instanceName = args[0];
         String zookeepers = args[1];
         String tableName = args[2];
 
         List<String> myList = Arrays.asList(Arrays.copyOfRange(args, 3, args.length));
-        WriteAheadLogReader reader = new WriteAheadLogReader(myList);
-        reader.handleWriteAheadLogs(new TableLogEventHandler(instanceName, zookeepers, tableName));
+        WriteAheadLogEventHandler handler = new TableLogEventHandler(instanceName, zookeepers, tableName);
+        WriteAheadLogReader reader = new WriteAheadLogReader(myList, handler);
+        reader.handleWriteAheadLogs();
     }
 }

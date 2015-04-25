@@ -1,4 +1,3 @@
-
 /**
  * Copyright 2015 Immuta Inc
  *
@@ -43,7 +42,7 @@ public class TableLogEventHandler implements WriteAheadLogEventHandler {
             ZooKeeperInstance instance = new ZooKeeperInstance(instanceName, zookeeper);
             this.tableId = new Text(Tables.getTableId(instance, tableName));
         } catch(TableNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException(e);
         }
     }
 
@@ -51,7 +50,6 @@ public class TableLogEventHandler implements WriteAheadLogEventHandler {
     public void handleEvent(LogFileKey key, LogFileValue value) {
         if(key.event == LogEvents.DEFINE_TABLET) {
             if(key.tablet.getTableId().equals(tableId)) {
-                System.out.println("Adding Tid: " + key.tid);
                 tids.add(key.tid);
             }
         } else if(key.event == LogEvents.MUTATION || key.event == LogEvents.MANY_MUTATIONS) {

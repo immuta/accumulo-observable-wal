@@ -38,45 +38,44 @@ import org.apache.hadoop.fs.Path;
 public class WriteAheadLogReader {
 
     private final List<Path> paths;
-    private final VolumeManager volumeManager; 
+    private final VolumeManager volumeManager;
+    private final WriteAheadLogEventHandler handler;
 
-    public WriteAheadLogReader(List<String> paths) throws IOException {
-        this(paths, null);
+    public WriteAheadLogReader(List<String> paths, WriteAheadLogEventHandler handler)
+        throws IOException {
+        this(paths, handler);
     }
 
-    // Visible for testing
-    public WriteAheadLogReader(List<String> paths, VolumeManager volumeManager) throws IOException {
-        this.paths = new ArrayList<Path>(paths.size());    
+    WriteAheadLogReader(List<String> paths, WriteAheadLogEventHandler handler,
+            VolueManager volumeManager) throws IOException {
+        this.paths = new ArrayList<Path>(paths.size());
         for(String path : paths) {
             this.paths.add(new Path(path));
         }
-        this.volumeManager = getVolumeManager(volumeManager);
+        this.handler = handler;
+        if(volumeManager == null) {
+            this.volumeManager = VolumeManagerImpl.get();
+        } else {
+            this.voluemeManager = volumeManager;
+        }
     }
 
-    public void handleWriteAheadLogs(WriteAheadLogEventHandler handler) throws IOException {
+    public void handleWriteAheadLogs() throws IOException {
         LogFileKey key  = new LogFileKey();
         LogFileValue value = new LogFileValue();
 
         for(Path path : paths) {
             if(volumeManager.isFile(path)) {
-                handleFile(path, handler, key, value);    
+                handleFile(path, key, value);
             } else {
-                handleDirectory(path, handler, key, value);    
+                handleDirectory(path, key, value);
             }
         }
     }
 
-    private VolumeManager getVolumeManager(VolumeManager volumeManager) throws IOException {
-        if(volumeManager != null) {
-            return volumeManager;
-        }
-        return VolumeManagerImpl.get();
-    }
-
-    private void handleFile(Path p, WriteAheadLogEventHandler handler, LogFileKey key, 
-        LogFileValue value) throws IOException {
+    private void handleFile(Path p, LogFileKey key, LogFileValue value) throws IOException {
         DFSLoggerInputStreams streams;
-        streams = DfsLogger.readHeaderAndReturnStream(volumeManager, p, 
+        streams = DfsLogger.readHeaderAndReturnStream(volumeManager, p,
                 ServerConfiguration.getSiteConfiguration());
 
         DataInputStream input = streams.getDecryptingInputStream();
@@ -94,13 +93,11 @@ public class WriteAheadLogReader {
             input.close();
         }
     }
-    
-    private void handleDirectory(Path p, WriteAheadLogEventHandler handler, LogFileKey key,
-            LogFileValue value) throws IOException {
+
+    private void handleDirectory(Path p, LogFileKey key, LogFileValue value) throws IOException {
         MultiReader input = new MultiReader(volumeManager, p);
         while(input.next(key, value)) {
             handler.handleEvent(key, value);
         }
     }
-
 }
