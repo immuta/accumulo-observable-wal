@@ -32,8 +32,8 @@ import org.apache.accumulo.tserver.log.MultiReader;
 import org.apache.accumulo.tserver.logger.LogFileKey;
 import org.apache.accumulo.tserver.logger.LogFileValue;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-
 
 public class WriteAheadLogReader {
 
@@ -43,11 +43,11 @@ public class WriteAheadLogReader {
 
     public WriteAheadLogReader(List<String> paths, WriteAheadLogEventHandler handler)
         throws IOException {
-        this(paths, handler);
+        this(paths, handler, null);
     }
 
     WriteAheadLogReader(List<String> paths, WriteAheadLogEventHandler handler,
-            VolueManager volumeManager) throws IOException {
+            VolumeManager volumeManager) throws IOException {
         this.paths = new ArrayList<Path>(paths.size());
         for(String path : paths) {
             this.paths.add(new Path(path));
@@ -56,7 +56,7 @@ public class WriteAheadLogReader {
         if(volumeManager == null) {
             this.volumeManager = VolumeManagerImpl.get();
         } else {
-            this.voluemeManager = volumeManager;
+            this.volumeManager = volumeManager;
         }
     }
 
@@ -66,7 +66,7 @@ public class WriteAheadLogReader {
 
         for(Path path : paths) {
             if(volumeManager.isFile(path)) {
-                handleFile(path, key, value);
+                tailFile(path, key, value);
             } else {
                 handleDirectory(path, key, value);
             }
@@ -80,15 +80,7 @@ public class WriteAheadLogReader {
 
         DataInputStream input = streams.getDecryptingInputStream();
         try {
-            while(true) {
-                try {
-                    key.readFields(input);
-                    value.readFields(input);
-                } catch(EOFException e) {
-                    break;
-                }
-                handler.handleEvent(key, value);
-            }
+            readFile(input, key, value);
         } finally {
             input.close();
         }
@@ -97,6 +89,47 @@ public class WriteAheadLogReader {
     private void handleDirectory(Path p, LogFileKey key, LogFileValue value) throws IOException {
         MultiReader input = new MultiReader(volumeManager, p);
         while(input.next(key, value)) {
+            handler.handleEvent(key, value);
+        }
+    }
+
+    private void tailFile(Path p, LogFileKey key, LogFileValue value) throws IOException  {
+        long offset = -1024;
+        while(true) {
+            long fileSize = volumeManager.getFileStatus(p).getLen();
+            if(offset >= fileSize ) {
+                // We are as big as the file so lets take a nap
+                try {
+                    // after napping check to see if we are still as big as the file
+                    Thread.sleep(5000);
+                    continue;
+                } catch(InterruptedException e) {
+                    break;
+                }
+            }
+            // Fetch the stream
+            DFSLoggerInputStreams streams;
+            streams = DfsLogger.readHeaderAndReturnStream(volumeManager, p,
+                    ServerConfiguration.getSiteConfiguration());
+            if(offset < 0) {
+                offset = streams.getOriginalInput().getPos();
+            } else {
+                streams.getOriginalInput().seek(offset);
+            }
+            DataInputStream input = streams.getDecryptingInputStream();
+            readFile(input, key, value);
+            offset = streams.getOriginalInput().getPos();
+        }
+    }
+
+    private void readFile(DataInputStream input, LogFileKey key, LogFileValue value) throws IOException {
+        while(true) {
+            try {
+                key.readFields(input);
+                value.readFields(input);
+            } catch(EOFException e) {
+                break;
+            }
             handler.handleEvent(key, value);
         }
     }
